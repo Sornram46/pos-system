@@ -191,42 +191,68 @@ const _db = {
 
 // =====================================================
 //  AUTH LAYER (ฝั่ง Admin)
+//  ใช้ตาราง public.users เอง (username + password) ผ่าน RPC verify_login
+//  session เก็บฝั่ง client ใน sessionStorage (หายเมื่อปิดแท็บ)
 // =====================================================
-// domain ภายในสำหรับประกอบ email จาก username (ผู้ใช้ไม่เห็น)
-const USERNAME_DOMAIN = 'aquashop.local';
 
-// แปลง username เป็น email ภายใน (ถ้ากรอกเป็น email เต็มอยู่แล้วก็ใช้ตามนั้น)
-function usernameToEmail(username) {
-  const u = String(username).trim().toLowerCase();
-  return u.includes('@') ? u : `${u}@${USERNAME_DOMAIN}`;
+const SESSION_KEY = 'aq_user_session';
+const _authListeners = [];
+
+function _loadSession() {
+  try { return JSON.parse(sessionStorage.getItem(SESSION_KEY)) || null; }
+  catch { return null; }
+}
+
+function _saveSession(user) {
+  if (user) sessionStorage.setItem(SESSION_KEY, JSON.stringify(user));
+  else      sessionStorage.removeItem(SESSION_KEY);
+  // แจ้งผู้ฟังทุกคน
+  _authListeners.forEach(cb => { try { cb(user); } catch (e) { console.error(e); } });
 }
 
 const _auth = {
-  // รับ username (หรือ email) + password
+  // login ด้วย username + password → เรียก RPC verify_login
+  // คืน user { id, username, role } ถ้าสำเร็จ, โยน error ถ้าไม่สำเร็จ
   async signIn(username, password) {
-    const email = usernameToEmail(username);
-    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    const { data, error } = await sb.rpc('verify_login', {
+      p_username: String(username).trim().toLowerCase(),
+      p_password: password,
+    });
     if (error) throw error;
-    return data.user;
+    if (!data || data.length === 0) {
+      throw new Error('INVALID_CREDENTIALS');
+    }
+    const user = data[0]; // { id, username, role }
+    _saveSession(user);
+    return user;
   },
 
   async signOut() {
-    const { error } = await sb.auth.signOut();
-    if (error) throw error;
+    _saveSession(null);
   },
 
-  async getUser() {
-    const { data } = await sb.auth.getUser();
-    return data.user;
+  // session = user object หรือ null
+  getSession() {
+    return _loadSession();
   },
 
-  async getSession() {
-    const { data } = await sb.auth.getSession();
-    return data.session;
+  getUser() {
+    return _loadSession();
   },
 
+  // profile ก็คือ user object เอง (มี role อยู่แล้ว)
+  getProfile() {
+    return _loadSession();
+  },
+
+  isAdmin() {
+    const u = _loadSession();
+    return u?.role === 'admin';
+  },
+
+  // callback(user|null) จะถูกเรียกเมื่อ login/logout
   onChange(callback) {
-    sb.auth.onAuthStateChange((_event, session) => callback(session));
+    _authListeners.push(callback);
   },
 };
 

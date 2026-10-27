@@ -1225,28 +1225,22 @@ function showAdminContent() {
 }
 
 // อัปเดต UI navbar + สิทธิ์ ตามสถานะ login และ role
-async function updateAuthUI(session) {
+// session = user object { id, username, role } หรือ null
+function updateAuthUI(session) {
   const logoutBtn = document.getElementById('btnLogout');
   const userWrap  = document.getElementById('navbarUser');
   const userEmail = document.getElementById('navbarUserEmail');
 
-  // ดึง profile (role) เมื่อมี session
-  currentProfile = null;
-  if (session) {
-    try { currentProfile = await auth.getProfile(); }
-    catch (err) { console.error('ดึง profile ไม่สำเร็จ:', err); }
-  }
+  currentProfile = session || null;
 
   // เข้า Admin ได้เฉพาะ role = 'admin'
-  isAdminAuthed = !!session && currentProfile?.role === 'admin';
+  isAdminAuthed = !!session && session.role === 'admin';
 
   if (session) {
     logoutBtn.style.display = '';
     userWrap.style.display  = '';
-    const roleLabel = currentProfile?.role === 'admin' ? ' (ผู้ดูแล)' : '';
-    // แสดงเฉพาะ username (ตัด @aquashop.local ออก)
-    const displayName = (session.user?.email || '').replace(/@aquashop\.local$/i, '');
-    userEmail.textContent   = displayName + roleLabel;
+    const roleLabel = session.role === 'admin' ? ' (ผู้ดูแล)' : ' (พนักงาน)';
+    userEmail.textContent   = (session.username || '') + roleLabel;
   } else {
     logoutBtn.style.display = 'none';
     userWrap.style.display  = 'none';
@@ -1315,7 +1309,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateCart();
 
   // ตั้งค่า auth: เช็ค session ปัจจุบัน + ฟังการเปลี่ยนแปลง
-  const session = await auth.getSession();
+  const session = auth.getSession();
   updateAuthUI(session);
   auth.onChange((s) => updateAuthUI(s));
 });
