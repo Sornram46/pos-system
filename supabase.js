@@ -31,7 +31,7 @@ function mapSaleRow(row) {
   };
 }
 
-const db = {
+const _db = {
   // ---------- CATEGORIES ----------
   async getCategories() {
     const { data, error } = await sb
@@ -192,7 +192,7 @@ const db = {
 // =====================================================
 //  AUTH LAYER (ฝั่ง Admin)
 // =====================================================
-const auth = {
+const _auth = {
   async signIn(email, password) {
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
     if (error) throw error;
@@ -220,6 +220,6 @@ const auth = {
 };
 
 // ให้ app.js เข้าถึงได้
-window.aqDB   = db;
-window.aqAuth = auth;
+window.aqDB   = _db;
+window.aqAuth = _auth;
 window.aqClient = sb;
