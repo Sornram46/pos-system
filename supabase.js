@@ -192,8 +192,19 @@ const _db = {
 // =====================================================
 //  AUTH LAYER (ฝั่ง Admin)
 // =====================================================
+// domain ภายในสำหรับประกอบ email จาก username (ผู้ใช้ไม่เห็น)
+const USERNAME_DOMAIN = 'aquashop.local';
+
+// แปลง username เป็น email ภายใน (ถ้ากรอกเป็น email เต็มอยู่แล้วก็ใช้ตามนั้น)
+function usernameToEmail(username) {
+  const u = String(username).trim().toLowerCase();
+  return u.includes('@') ? u : `${u}@${USERNAME_DOMAIN}`;
+}
+
 const _auth = {
-  async signIn(email, password) {
+  // รับ username (หรือ email) + password
+  async signIn(username, password) {
+    const email = usernameToEmail(username);
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
     if (error) throw error;
     return data.user;

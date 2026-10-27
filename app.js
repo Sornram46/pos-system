@@ -1244,7 +1244,9 @@ async function updateAuthUI(session) {
     logoutBtn.style.display = '';
     userWrap.style.display  = '';
     const roleLabel = currentProfile?.role === 'admin' ? ' (ผู้ดูแล)' : '';
-    userEmail.textContent   = (session.user?.email || '') + roleLabel;
+    // แสดงเฉพาะ username (ตัด @aquashop.local ออก)
+    const displayName = (session.user?.email || '').replace(/@aquashop\.local$/i, '');
+    userEmail.textContent   = displayName + roleLabel;
   } else {
     logoutBtn.style.display = 'none';
     userWrap.style.display  = 'none';
@@ -1267,7 +1269,7 @@ async function updateAuthUI(session) {
 
 async function handleLogin(e) {
   e.preventDefault();
-  const email    = document.getElementById('loginEmail').value.trim();
+  const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value;
   const errEl    = document.getElementById('loginError');
   const btn      = document.getElementById('btnLogin');
@@ -1277,13 +1279,13 @@ async function handleLogin(e) {
   btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังเข้าสู่ระบบ...';
 
   try {
-    await auth.signIn(email, password);
+    await auth.signIn(username, password);
     document.getElementById('loginPassword').value = '';
     showToast('เข้าสู่ระบบสำเร็จ', 'success');
     // updateAuthUI จะถูกเรียกผ่าน onChange อัตโนมัติ
   } catch (err) {
     console.error(err);
-    errEl.textContent = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
+    errEl.textContent = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
   } finally {
     btn.disabled = false;
     btn.innerHTML = '<i class="fas fa-right-to-bracket"></i> เข้าสู่ระบบ';

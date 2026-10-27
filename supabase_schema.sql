@@ -345,19 +345,27 @@ on conflict (id) do nothing;
 -- where email = 'your-admin@example.com';
 
 -- =====================================================
---  DEMO ADMIN USER (สำหรับทดสอบเข้า Admin panel)
+--  DEMO ADMIN USER (login ด้วย USERNAME + PASSWORD)
+--
+--  ระบบ login ใช้ username แต่เบื้องหลัง Supabase ยังผูกกับ email
+--  โค้ดจะแปลง username → email ภายในอัตโนมัติ: <username>@aquashop.local
+--  ดังนั้น username 'admin' = email 'admin@aquashop.local'
 --
 --  ⚠️ ต้องสร้าง user ใน Dashboard ก่อน (SQL สร้าง login user ไม่ได้)
 --     Authentication → Users → Add user
---       Email    : demo.admin@aquashop.com
+--       Email    : admin@aquashop.local      ← (username คือ 'admin')
 --       Password : Demo@1234
 --       ☑ Auto Confirm User
+--
+--  แล้วเข้าหน้า Admin ของแอป โดยกรอก:
+--       ชื่อผู้ใช้ : admin
+--       รหัสผ่าน  : Demo@1234
 --
 --  จากนั้นรันคำสั่งด้านล่างเพื่อตั้งให้เป็น admin:
 -- =====================================================
 update public.profiles
 set role = 'admin'
-where email = 'demo.admin@aquashop.com';
+where email = 'admin@aquashop.local';
 
 -- ตรวจสอบผล: ควรเห็น role = 'admin'
--- select email, role from public.profiles where email = 'demo.admin@aquashop.com';
+-- select email, role from public.profiles where email = 'admin@aquashop.local';
