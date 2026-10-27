@@ -12,7 +12,8 @@ let categories = [];
 let cart       = [];
 let sales      = [];
 let activeCategory = 'ทั้งหมด';
-let isAdminAuthed  = false;
+let isAdminAuthed  = false;   // login แล้ว + เป็น admin
+let currentProfile = null;    // profile ของผู้ใช้ปัจจุบัน (เก็บ role)
 
 // ─── โหลดข้อมูลหลักจาก Supabase ──────────────────────
 async function loadCoreData() {
@@ -49,9 +50,13 @@ function showPage(page) {
   if (typeof toggleCart === 'function') toggleCart(false);
 
   if (page === 'admin') {
-    // ต้องเข้าสู่ระบบก่อนถึงจะเห็นเนื้อหา Admin
+    // ต้องเข้าสู่ระบบ + เป็น admin ถึงจะเห็นเนื้อหา Admin
     if (!isAdminAuthed) {
-      showLoginGate();
+      // login แล้วแต่ไม่ใช่ admin → แจ้งว่าไม่มีสิทธิ์
+      const msg = currentProfile && currentProfile.role !== 'admin'
+        ? 'บัญชีนี้ไม่มีสิทธิ์เข้าถึง Admin panel (ต้องเป็นผู้ดูแลระบบ)'
+        : '';
+      showLoginGate(msg);
       return;
     }
     showAdminContent();
@@ -1207,9 +1212,11 @@ function getChartBuckets(periodSales) {
 //  AUTH GATE (ฝั่ง Admin)
 // =====================================================
 
-function showLoginGate() {
+function showLoginGate(message = '') {
   document.getElementById('loginGate').style.display    = 'flex';
   document.getElementById('adminLayout').style.display  = 'none';
+  const errEl = document.getElementById('loginError');
+  if (errEl) errEl.textContent = message;
 }
 
 function showAdminContent() {
@@ -1217,17 +1224,27 @@ function showAdminContent() {
   document.getElementById('adminLayout').style.display  = 'block';
 }
 
-// อัปเดต UI navbar ตามสถานะ login
-function updateAuthUI(session) {
-  isAdminAuthed = !!session;
+// อัปเดต UI navbar + สิทธิ์ ตามสถานะ login และ role
+async function updateAuthUI(session) {
   const logoutBtn = document.getElementById('btnLogout');
   const userWrap  = document.getElementById('navbarUser');
   const userEmail = document.getElementById('navbarUserEmail');
 
-  if (isAdminAuthed) {
+  // ดึง profile (role) เมื่อมี session
+  currentProfile = null;
+  if (session) {
+    try { currentProfile = await auth.getProfile(); }
+    catch (err) { console.error('ดึง profile ไม่สำเร็จ:', err); }
+  }
+
+  // เข้า Admin ได้เฉพาะ role = 'admin'
+  isAdminAuthed = !!session && currentProfile?.role === 'admin';
+
+  if (session) {
     logoutBtn.style.display = '';
     userWrap.style.display  = '';
-    userEmail.textContent   = session.user?.email || '';
+    const roleLabel = currentProfile?.role === 'admin' ? ' (ผู้ดูแล)' : '';
+    userEmail.textContent   = (session.user?.email || '') + roleLabel;
   } else {
     logoutBtn.style.display = 'none';
     userWrap.style.display  = 'none';
@@ -1236,8 +1253,15 @@ function updateAuthUI(session) {
 
   // ถ้ากำลังอยู่หน้า Admin ให้ปรับการแสดงผลทันที
   if (document.getElementById('adminPage').classList.contains('active')) {
-    if (isAdminAuthed) { showAdminContent(); loadAdminData(); }
-    else               { showLoginGate(); }
+    if (isAdminAuthed) {
+      showAdminContent();
+      loadAdminData();
+    } else if (session) {
+      // login แล้วแต่ไม่ใช่ admin
+      showLoginGate('บัญชีนี้ไม่มีสิทธิ์เข้าถึง Admin panel (ต้องเป็นผู้ดูแลระบบ)');
+    } else {
+      showLoginGate();
+    }
   }
 }
 
