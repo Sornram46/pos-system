@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ร้านน้ำดื่ม AquaShop POS</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar">
+  <div class="navbar-brand">
+    <i class="fas fa-tint"></i>
+    <span>AquaShop POS</span>
+  </div>
+  <div class="navbar-menu">
+    <button class="nav-btn active" onclick="showPage('pos')" id="navPos">
+      <i class="fas fa-cash-register"></i> หน้าขาย
+    </button>
+    <button class="nav-btn" onclick="showPage('admin')" id="navAdmin">
+      <i class="fas fa-cogs"></i> Admin Panel
+    </button>
+    <button class="nav-btn nav-logout" id="btnLogout" onclick="handleLogout()" style="display:none">
+      <i class="fas fa-right-from-bracket"></i> ออกจากระบบ
+    </button>
+  </div>
+  <div class="navbar-info">
+    <span class="navbar-user" id="navbarUser" style="display:none">
+      <i class="fas fa-user-circle"></i> <span id="navbarUserEmail"></span>
+    </span>
+    <i class="fas fa-calendar-alt"></i>
+    <span id="currentDate"></span>
+    <i class="fas fa-clock" style="margin-left:12px"></i>
+    <span id="currentTime"></span>
+  </div>
+</nav>
+
+<!-- ===================== POS PAGE ===================== -->
+<div id="posPage" class="page active">
+  <div class="pos-layout">
+
+    <!-- Left: Product Grid -->
+    <div class="product-section">
+      <div class="section-header">
+        <h2><i class="fas fa-store"></i> เลือกสินค้า</h2>
+        <div class="search-bar">
+          <i class="fas fa-search"></i>
+          <input type="text" id="searchInput" placeholder="ค้นหาสินค้า..." oninput="filterProducts()" />
+        </div>
+      </div>
+
+      <!-- Category Tabs -->
+      <div class="category-tabs" id="categoryTabs"></div>
+
+      <!-- Product Grid -->
+      <div class="product-grid" id="productGrid"></div>
+    </div>
+
+    <!-- Right: Cart -->
+    <div class="cart-backdrop" id="cartBackdrop" onclick="toggleCart(false)"></div>
+    <div class="cart-section" id="cartSection">
+      <div class="cart-header">
+        <h2><i class="fas fa-shopping-cart"></i> รายการสั่งซื้อ</h2>
+        <button class="btn-clear" onclick="clearCart()">
+          <i class="fas fa-trash"></i> ล้าง
+        </button>
+      </div>
+
+      <div class="cart-items" id="cartItems">
+        <div class="empty-cart">
+          <i class="fas fa-shopping-cart"></i>
+          <p>ยังไม่มีสินค้า</p>
+        </div>
+      </div>
+
+      <div class="cart-summary">
+        <div class="summary-row">
+          <span>รายการทั้งหมด</span>
+          <span id="totalItems">0 รายการ</span>
+        </div>
+        <div class="summary-row">
+          <span>ราคารวม</span>
+          <span id="subtotal">฿0.00</span>
+        </div>
+        <div class="summary-row discount-row">
+          <span>ส่วนลด</span>
+          <div class="discount-input-wrap">
+            <input type="number" id="discountInput" placeholder="0" min="0" oninput="updateCart()" />
+            <span>฿</span>
+          </div>
+        </div>
+        <div class="summary-row total-row">
+          <span>ยอดชำระ</span>
+          <span id="grandTotal">฿0.00</span>
+        </div>
+      </div>
+
+      <div class="payment-section">
+        <div class="payment-label"><i class="fas fa-money-bill-wave"></i> รับเงิน</div>
+        <div class="quick-amounts" id="quickAmounts"></div>
+        <div class="cash-input-wrap">
+          <span class="currency-sign">฿</span>
+          <input type="number" id="cashInput" placeholder="0.00" min="0" oninput="calcChange()" />
+        </div>
+        <div class="change-display" id="changeDisplay">
+          <span>เงินทอน: </span><span id="changeAmount">฿0.00</span>
+        </div>
+        <button class="btn-checkout" onclick="checkout()" id="checkoutBtn" disabled>
+          <i class="fas fa-check-circle"></i> ชำระเงิน
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating cart button (mobile only) -->
+  <button class="cart-fab" id="cartFab" onclick="toggleCart(true)">
+    <i class="fas fa-shopping-cart"></i>
+    <span>ดูตะกร้า</span>
+    <span class="fab-count" id="fabCount">0</span>
+  </button>
+</div>
+
+<!-- ===================== ADMIN PAGE ===================== -->
+<div id="adminPage" class="page">
+
+  <!-- Login gate (แสดงเมื่อยังไม่ได้เข้าสู่ระบบ) -->
+  <div class="login-gate" id="loginGate">
+    <form class="login-card" id="loginForm" onsubmit="handleLogin(event)">
+      <div class="login-brand">
+        <i class="fas fa-tint"></i>
+        <h2>AquaShop Admin</h2>
+        <p>เข้าสู่ระบบเพื่อจัดการร้าน</p>
+      </div>
+      <div class="form-group">
+        <label>อีเมล</label>
+        <div class="login-input-wrap">
+          <i class="fas fa-envelope"></i>
+          <input type="email" id="loginEmail" placeholder="admin@example.com" autocomplete="username" required />
+        </div>
+      </div>
+      <div class="form-group">
+        <label>รหัสผ่าน</label>
+        <div class="login-input-wrap">
+          <i class="fas fa-lock"></i>
+          <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" required />
+        </div>
+      </div>
+      <div class="login-error" id="loginError"></div>
+      <button type="submit" class="btn-login" id="btnLogin">
+        <i class="fas fa-right-to-bracket"></i> เข้าสู่ระบบ
+      </button>
+    </form>
+  </div>
+
+  <!-- เนื้อหา Admin จริง (แสดงเมื่อเข้าสู่ระบบแล้ว) -->
+  <div class="admin-layout" id="adminLayout" style="display:none">
+
+    <!-- Stats Cards -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-icon bg-red"><i class="fas fa-boxes"></i></div>
+        <div class="stat-info">
+          <div class="stat-number" id="statProducts">0</div>
+          <div class="stat-label">สินค้าทั้งหมด</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon bg-orange"><i class="fas fa-receipt"></i></div>
+        <div class="stat-info">
+          <div class="stat-number" id="statOrders">0</div>
+          <div class="stat-label">ออร์เดอร์วันนี้</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon bg-green"><i class="fas fa-coins"></i></div>
+        <div class="stat-info">
+          <div class="stat-number" id="statRevenue">฿0</div>
+          <div class="stat-label">ยอดขายวันนี้</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon bg-blue"><i class="fas fa-tags"></i></div>
+        <div class="stat-info">
+          <div class="stat-number" id="statCategories">0</div>
+          <div class="stat-label">หมวดหมู่</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="admin-content">
+
+      <!-- ===================== REPORT SECTION ===================== -->
+      <div class="admin-card report-card">
+        <div class="admin-card-header">
+          <h3><i class="fas fa-chart-line"></i> รายงานยอดขาย</h3>
+          <div class="report-period-tabs">
+            <button class="report-tab active" id="tabDay"   onclick="switchReport('day')">
+              <i class="fas fa-calendar-day"></i> รายวัน
+            </button>
+            <button class="report-tab" id="tabWeek"  onclick="switchReport('week')">
+              <i class="fas fa-calendar-week"></i> รายสัปดาห์
+            </button>
+            <button class="report-tab" id="tabYear"  onclick="switchReport('year')">
+              <i class="fas fa-calendar-alt"></i> รายปี
+            </button>
+          </div>
+        </div>
+
+        <!-- Report Summary KPI Strip -->
+        <div class="report-kpi-strip" id="reportKpiStrip">
+          <div class="report-kpi">
+            <div class="kpi-label"><i class="fas fa-coins"></i> ยอดขายรวม</div>
+            <div class="kpi-value" id="kpiRevenue">฿0.00</div>
+          </div>
+          <div class="report-kpi">
+            <div class="kpi-label"><i class="fas fa-receipt"></i> จำนวนออร์เดอร์</div>
+            <div class="kpi-value" id="kpiOrders">0</div>
+          </div>
+          <div class="report-kpi">
+            <div class="kpi-label"><i class="fas fa-chart-bar"></i> เฉลี่ย/ออร์เดอร์</div>
+            <div class="kpi-value" id="kpiAvg">฿0.00</div>
+          </div>
+          <div class="report-kpi">
+            <div class="kpi-label"><i class="fas fa-arrow-trend-up"></i> ช่วงที่ดีสุด</div>
+            <div class="kpi-value kpi-sm" id="kpiBest">—</div>
+          </div>
+        </div>
+
+        <!-- Charts Area -->
+        <div class="charts-area">
+          <!-- Main Revenue Chart -->
+          <div class="chart-box chart-main">
+            <div class="chart-box-header">
+              <span id="mainChartTitle">ยอดขายรายชั่วโมง (วันนี้)</span>
+              <div class="chart-legend" id="mainChartLegend"></div>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="mainChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Pie Chart: Category -->
+          <div class="chart-box chart-side">
+            <div class="chart-box-header">
+              <span>สัดส่วนยอดขายตามหมวดหมู่</span>
+            </div>
+            <div class="chart-wrap chart-wrap-pie">
+              <canvas id="categoryChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom Row: Top Products + Orders Bar -->
+        <div class="charts-area charts-bottom">
+          <!-- Top 5 Products Bar -->
+          <div class="chart-box chart-half">
+            <div class="chart-box-header">
+              <span><i class="fas fa-trophy" style="color:#f39c12"></i> สินค้าขายดีสุด 5 อันดับ</span>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="topProductChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Orders Count Chart -->
+          <div class="chart-box chart-half">
+            <div class="chart-box-header">
+              <span><i class="fas fa-shopping-bag" style="color:#8e44ad"></i> จำนวนออร์เดอร์</span>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="ordersChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Category Management -->
+      <div class="admin-card">
+        <div class="admin-card-header">
+          <h3><i class="fas fa-tags"></i> จัดการหมวดหมู่</h3>
+          <button class="btn-primary" onclick="openCategoryModal()">
+            <i class="fas fa-plus"></i> เพิ่มหมวดหมู่
+          </button>
+        </div>
+        <div class="category-grid" id="categoryGrid"></div>
+      </div>
+
+      <!-- Product Management -->
+      <div class="admin-card">
+        <div class="admin-card-header">
+          <h3><i class="fas fa-box"></i> จัดการสินค้า</h3>
+          <button class="btn-primary" onclick="openProductModal()">
+            <i class="fas fa-plus"></i> เพิ่มสินค้า
+          </button>
+        </div>
+
+        <div class="table-search">
+          <i class="fas fa-search"></i>
+          <input type="text" placeholder="ค้นหาสินค้า..." oninput="filterAdminProducts(this.value)" />
+        </div>
+
+        <div class="table-wrap">
+          <table class="product-table" id="adminProductTable">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>รูป</th>
+                <th>ชื่อสินค้า</th>
+                <th>หมวดหมู่</th>
+                <th>ราคา</th>
+                <th>สถานะ</th>
+                <th>จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="adminProductBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Sales History -->
+      <div class="admin-card">
+        <div class="admin-card-header">
+          <h3><i class="fas fa-history"></i> ประวัติการขาย</h3>
+          <button class="btn-outline" onclick="clearHistory()">
+            <i class="fas fa-trash"></i> ล้างประวัติ
+          </button>
+        </div>
+        <div class="table-wrap">
+          <table class="product-table" id="salesTable">
+            <thead>
+              <tr>
+                <th>เลขที่</th>
+                <th>วันเวลา</th>
+                <th>รายการ</th>
+                <th>ยอดรวม</th>
+                <th>รับเงิน</th>
+                <th>เงินทอน</th>
+              </tr>
+            </thead>
+            <tbody id="salesBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== PRODUCT MODAL ===================== -->
+<div class="modal-overlay" id="productModal" onclick="closeProductModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalTitle"><i class="fas fa-plus-circle"></i> เพิ่มสินค้า</h3>
+      <button class="modal-close" onclick="closeProductModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editProductId" />
+      <div class="form-group">
+        <label>ชื่อสินค้า <span class="required">*</span></label>
+        <input type="text" id="productName" placeholder="ระบุชื่อสินค้า" />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>ราคา (฿) <span class="required">*</span></label>
+          <input type="number" id="productPrice" placeholder="0.00" min="0" step="0.5" />
+        </div>
+        <div class="form-group">
+          <label>หมวดหมู่ <span class="required">*</span></label>
+          <select id="productCategory">
+            <option value="">-- เลือกหมวดหมู่ --</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>รูปสินค้า</label>
+        <div class="image-uploader">
+          <div class="image-preview" id="imagePreview">
+            <span class="image-preview-emoji" id="imagePreviewEmoji">💧</span>
+            <img id="imagePreviewImg" alt="" style="display:none" />
+            <button type="button" class="image-remove-btn" id="imageRemoveBtn" onclick="removeProductImage()" style="display:none" title="ลบรูป">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="image-upload-actions">
+            <label class="btn-outline image-upload-label">
+              <i class="fas fa-upload"></i> เลือกรูป
+              <input type="file" id="productImageInput" accept="image/*" onchange="handleImageSelect(event)" hidden />
+            </label>
+            <small class="image-hint">รองรับ JPG/PNG/WebP ไม่เกิน 2MB<br>ถ้าไม่ใส่รูป จะใช้ Emoji แทน</small>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Emoji / ไอคอน (ใช้เมื่อไม่มีรูป)</label>
+        <div class="emoji-picker">
+          <input type="text" id="productEmoji" placeholder="💧" maxlength="2" oninput="syncEmojiPreview()" />
+          <div class="emoji-suggestions">
+            <span onclick="setEmoji('💧')">💧</span>
+            <span onclick="setEmoji('🧃')">🧃</span>
+            <span onclick="setEmoji('🥤')">🥤</span>
+            <span onclick="setEmoji('☕')">☕</span>
+            <span onclick="setEmoji('🧋')">🧋</span>
+            <span onclick="setEmoji('🍵')">🍵</span>
+            <span onclick="setEmoji('🍹')">🍹</span>
+            <span onclick="setEmoji('🍺')">🍺</span>
+            <span onclick="setEmoji('🥛')">🥛</span>
+            <span onclick="setEmoji('🫖')">🫖</span>
+            <span onclick="setEmoji('🧊')">🧊</span>
+            <span onclick="setEmoji('🍶')">🍶</span>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>สถานะสินค้า</label>
+        <label class="toggle-wrap">
+          <input type="checkbox" id="productActive" checked />
+          <span class="toggle"></span>
+          <span class="toggle-label">พร้อมขาย</span>
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-outline" onclick="closeProductModal()">ยกเลิก</button>
+      <button class="btn-primary" onclick="saveProduct()">
+        <i class="fas fa-save"></i> บันทึก
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== CATEGORY MODAL ===================== -->
+<div class="modal-overlay" id="categoryModal" onclick="closeCategoryModal(event)">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h3 id="catModalTitle"><i class="fas fa-plus-circle"></i> เพิ่มหมวดหมู่</h3>
+      <button class="modal-close" onclick="closeCategoryModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editCategoryId" />
+      <div class="form-group">
+        <label>ชื่อหมวดหมู่ <span class="required">*</span></label>
+        <input type="text" id="categoryName" placeholder="เช่น น้ำดื่ม, น้ำผลไม้..." />
+      </div>
+      <div class="form-group">
+        <label>Emoji ประจำหมวดหมู่</label>
+        <div class="emoji-picker">
+          <input type="text" id="categoryEmoji" placeholder="🏷️" maxlength="2" />
+          <div class="emoji-suggestions">
+            <span onclick="setCatEmoji('💧')">💧</span>
+            <span onclick="setCatEmoji('🧃')">🧃</span>
+            <span onclick="setCatEmoji('🥤')">🥤</span>
+            <span onclick="setCatEmoji('☕')">☕</span>
+            <span onclick="setCatEmoji('🧋')">🧋</span>
+            <span onclick="setCatEmoji('🍵')">🍵</span>
+            <span onclick="setCatEmoji('🍹')">🍹</span>
+            <span onclick="setCatEmoji('🥛')">🥛</span>
+            <span onclick="setCatEmoji('⚡')">⚡</span>
+            <span onclick="setCatEmoji('🍶')">🍶</span>
+            <span onclick="setCatEmoji('🫖')">🫖</span>
+            <span onclick="setCatEmoji('🍺')">🍺</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-outline" onclick="closeCategoryModal()">ยกเลิก</button>
+      <button class="btn-primary" onclick="saveCategory()">
+        <i class="fas fa-save"></i> บันทึก
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== RECEIPT MODAL ===================== -->
+<div class="modal-overlay" id="receiptModal" onclick="closeReceiptModal(event)">
+  <div class="modal receipt-modal">
+    <div class="modal-header">
+      <h3><i class="fas fa-receipt"></i> ใบเสร็จรับเงิน</h3>
+      <button class="modal-close" onclick="closeReceiptModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body" id="receiptContent"></div>
+    <div class="modal-footer">
+      <button class="btn-outline" onclick="closeReceiptModal()">ปิด</button>
+      <button class="btn-primary" onclick="printReceipt()">
+        <i class="fas fa-print"></i> พิมพ์ใบเสร็จ
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Notification -->
+<div class="toast" id="toast"></div>
+
+<script src="supabase.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
