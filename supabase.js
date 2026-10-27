@@ -28,6 +28,7 @@ function mapSaleRow(row) {
     grand:    Number(row.grand),
     cash:     Number(row.cash),
     change:   Number(row.change),
+    payment_method: row.payment_method || 'cash',
   };
 }
 
@@ -167,6 +168,7 @@ const _db = {
         grand:    sale.grand,
         cash:     sale.cash,
         change:   sale.change,
+        payment_method: sale.payment_method || 'cash',
       })
       .select()
       .single();
@@ -185,6 +187,25 @@ const _db = {
   async clearSales() {
     // ลบทุกแถว (id > 0 ครอบคลุมทั้งหมดเพราะ identity เริ่มที่ 1)
     const { error } = await sb.from('sales').delete().gt('id', 0);
+    if (error) throw error;
+  },
+
+  // ---------- SETTINGS ----------
+  // คืนเป็น object { key: value, ... }
+  async getSettings() {
+    const { data, error } = await sb.from('settings').select('key, value');
+    if (error) throw error;
+    const out = {};
+    (data || []).forEach(r => { out[r.key] = r.value; });
+    return out;
+  },
+
+  // บันทึกหลาย key พร้อมกัน (upsert)
+  async saveSettings(obj) {
+    const rows = Object.entries(obj).map(([key, value]) => ({
+      key, value: value ?? '', updated_at: new Date().toISOString(),
+    }));
+    const { error } = await sb.from('settings').upsert(rows, { onConflict: 'key' });
     if (error) throw error;
   },
 };
@@ -257,6 +278,71 @@ const _auth = {
 };
 
 // ให้ app.js เข้าถึงได้
+// =====================================================
+//  PROMPTPAY QR PAYLOAD GENERATOR
+//  สร้าง payload มาตรฐาน EMVCo สำหรับ PromptPay (คำนวณในเครื่อง ไม่ส่งข้อมูลออก)
+//  รองรับ: เบอร์โทร (10 หลัก) หรือ เลขบัตรประชาชน/Tax ID (13 หลัก)
+// =====================================================
+
+function _ppFormat(id, value) {
+  // id = tag 2 หลัก, ประกอบเป็น ID + ความยาว(2หลัก) + ค่า
+  const len = String(value.length).padStart(2, '0');
+  return `${id}${len}${value}`;
+}
+
+function _ppCRC16(payload) {
+  // CRC-16/CCITT-FALSE
+  let crc = 0xFFFF;
+  for (let i = 0; i < payload.length; i++) {
+    crc ^= payload.charCodeAt(i) << 8;
+    for (let j = 0; j < 8; j++) {
+      crc = (crc & 0x8000) ? (crc << 1) ^ 0x1021 : crc << 1;
+      crc &= 0xFFFF;
+    }
+  }
+  return crc.toString(16).toUpperCase().padStart(4, '0');
+}
+
+// แปลงเบอร์/เลขบัตร เป็นรูปแบบที่ PromptPay ต้องการ
+function _ppTarget(id) {
+  const digits = String(id).replace(/\D/g, '');
+  if (digits.length === 13) {
+    // เลขบัตรประชาชน / Tax ID — ใช้ตามนั้น
+    return { tag: '02', value: digits };
+  }
+  // เบอร์โทร: ตัด 0 นำหน้า แล้วเติม 0066 (รหัสไทย) ให้ครบ
+  let phone = digits;
+  if (phone.startsWith('0')) phone = phone.slice(1);
+  return { tag: '01', value: `0066${phone}` };
+}
+
+// สร้าง payload string (ใส่ลง QR ได้เลย)
+// amount = ตัวเลข (บาท) ถ้าระบุจะเป็น QR จ่ายแบบ "ล็อกยอด"
+function buildPromptPayPayload(promptpayId, amount) {
+  const target = _ppTarget(promptpayId);
+
+  // Merchant Account Information (tag 29) สำหรับ PromptPay
+  const aid = _ppFormat('00', 'A000000677010111');
+  const acc = _ppFormat(target.tag, target.value);
+  const merchantInfo = _ppFormat('29', aid + acc);
+
+  let payload =
+    _ppFormat('00', '01') +                              // version
+    _ppFormat('01', amount != null ? '12' : '11') +      // 11=static, 12=dynamic(มียอด)
+    merchantInfo +
+    _ppFormat('53', '764') +                             // currency THB
+    _ppFormat('58', 'TH');                               // country
+
+  if (amount != null && !isNaN(amount)) {
+    payload += _ppFormat('54', Number(amount).toFixed(2)); // amount
+  }
+
+  payload += '6304';                                     // CRC tag + length
+  payload += _ppCRC16(payload);
+  return payload;
+}
+
 window.aqDB   = _db;
 window.aqAuth = _auth;
 window.aqClient = sb;
+window.aqPromptPay = buildPromptPayPayload;

@@ -1950,3 +1950,135 @@ canvas {
   color: var(--gray-400);
   line-height: 1.5;
 }
+
+/* ===========================
+   PAYMENT METHOD / PROMPTPAY
+   =========================== */
+.pay-method-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.pay-method-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--gray-200);
+  background: var(--white);
+  color: var(--gray-500);
+  font-family: var(--font);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pay-method-btn:hover {
+  border-color: var(--red-primary);
+  color: var(--red-primary);
+}
+
+.pay-method-btn.active {
+  background: var(--red-primary);
+  border-color: var(--red-primary);
+  color: var(--white);
+}
+
+/* กล่อง PromptPay ในหน้าขาย */
+.promptpay-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  background: linear-gradient(135deg, #fff, var(--gray-50));
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  margin-bottom: 12px;
+}
+
+.promptpay-logo {
+  font-weight: 800;
+  font-size: 1rem;
+  color: #003d6b;
+  letter-spacing: 0.5px;
+}
+
+.promptpay-box canvas {
+  border-radius: var(--radius-sm);
+}
+
+.promptpay-amount {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--red-primary);
+}
+
+.promptpay-name {
+  font-size: 0.85rem;
+  color: var(--gray-500);
+}
+
+.promptpay-empty {
+  text-align: center;
+  padding: 24px 16px;
+  color: var(--gray-500);
+  background: var(--orange-light);
+  border: 1px dashed var(--orange);
+  border-radius: var(--radius-md);
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.promptpay-empty i {
+  font-size: 1.6rem;
+  color: var(--orange);
+  display: block;
+  margin-bottom: 6px;
+}
+
+/* หลังบ้าน: ตั้งค่าการชำระเงิน */
+.settings-body {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.settings-hint {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--gray-400);
+  margin-top: 4px;
+}
+
+.settings-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  background: var(--gray-50);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+}
+
+.settings-preview-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--gray-600);
+}
+
+.settings-preview canvas {
+  border-radius: var(--radius-sm);
+}
+
+.settings-body .btn-primary {
+  align-self: flex-start;
+}

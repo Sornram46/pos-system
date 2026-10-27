@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -101,15 +102,45 @@
       </div>
 
       <div class="payment-section">
-        <div class="payment-label"><i class="fas fa-money-bill-wave"></i> รับเงิน</div>
-        <div class="quick-amounts" id="quickAmounts"></div>
-        <div class="cash-input-wrap">
-          <span class="currency-sign">฿</span>
-          <input type="number" id="cashInput" placeholder="0.00" min="0" oninput="calcChange()" />
+        <!-- เลือกวิธีชำระเงิน -->
+        <div class="pay-method-tabs">
+          <button class="pay-method-btn active" id="payCashBtn" onclick="setPaymentMethod('cash')">
+            <i class="fas fa-money-bill-wave"></i> เงินสด
+          </button>
+          <button class="pay-method-btn" id="payQrBtn" onclick="setPaymentMethod('promptpay')">
+            <i class="fas fa-qrcode"></i> PromptPay
+          </button>
         </div>
-        <div class="change-display" id="changeDisplay">
-          <span>เงินทอน: </span><span id="changeAmount">฿0.00</span>
+
+        <!-- โหมดเงินสด -->
+        <div id="cashPane">
+          <div class="payment-label"><i class="fas fa-money-bill-wave"></i> รับเงิน</div>
+          <div class="quick-amounts" id="quickAmounts"></div>
+          <div class="cash-input-wrap">
+            <span class="currency-sign">฿</span>
+            <input type="number" id="cashInput" placeholder="0.00" min="0" oninput="calcChange()" />
+          </div>
+          <div class="change-display" id="changeDisplay">
+            <span>เงินทอน: </span><span id="changeAmount">฿0.00</span>
+          </div>
         </div>
+
+        <!-- โหมด PromptPay -->
+        <div id="qrPane" style="display:none">
+          <div class="payment-label"><i class="fas fa-qrcode"></i> สแกนเพื่อโอน</div>
+          <div class="promptpay-box" id="promptpayBox">
+            <div class="promptpay-logo">PromptPay</div>
+            <canvas id="ppQrCanvas"></canvas>
+            <div class="promptpay-amount" id="ppAmount">฿0.00</div>
+            <div class="promptpay-name" id="ppName"></div>
+          </div>
+          <div class="promptpay-empty" id="ppEmpty" style="display:none">
+            <i class="fas fa-triangle-exclamation"></i>
+            ยังไม่ได้ตั้งค่าเบอร์ PromptPay<br>
+            <small>ไปที่ Admin Panel → ตั้งค่าการชำระเงิน</small>
+          </div>
+        </div>
+
         <button class="btn-checkout" onclick="checkout()" id="checkoutBtn" disabled>
           <i class="fas fa-check-circle"></i> ชำระเงิน
         </button>
@@ -276,6 +307,34 @@
               <canvas id="ordersChart"></canvas>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Payment Settings (PromptPay) -->
+      <div class="admin-card">
+        <div class="admin-card-header">
+          <h3><i class="fas fa-qrcode"></i> ตั้งค่าการชำระเงิน (PromptPay)</h3>
+        </div>
+        <div class="settings-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>เบอร์ PromptPay / เลขบัตรประชาชน <span class="required">*</span></label>
+              <input type="text" id="setPromptpayId" placeholder="0812345678 หรือ 1234567890123" inputmode="numeric" oninput="renderSettingsQrPreview()" />
+              <small class="settings-hint">เบอร์โทร 10 หลัก หรือเลขบัตรประชาชน 13 หลัก</small>
+            </div>
+            <div class="form-group">
+              <label>ชื่อบัญชี (ไว้แสดงบนหน้า QR)</label>
+              <input type="text" id="setPromptpayName" placeholder="เช่น ร้านน้ำ AquaShop" />
+            </div>
+          </div>
+          <div class="settings-preview">
+            <div class="settings-preview-label">ตัวอย่าง QR</div>
+            <canvas id="setQrPreview"></canvas>
+            <small id="setQrHint" class="settings-hint">กรอกเบอร์แล้วกด "บันทึก" เพื่อสร้าง QR</small>
+          </div>
+          <button class="btn-primary" onclick="savePaymentSettings()">
+            <i class="fas fa-save"></i> บันทึกการตั้งค่า
+          </button>
         </div>
       </div>
 

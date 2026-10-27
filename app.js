@@ -14,13 +14,16 @@ let sales      = [];
 let activeCategory = 'ทั้งหมด';
 let isAdminAuthed  = false;   // login แล้ว + เป็น admin
 let currentProfile = null;    // profile ของผู้ใช้ปัจจุบัน (เก็บ role)
+let paymentMethod  = 'cash';  // 'cash' | 'promptpay'
+let appSettings    = {};      // { shop_name, promptpay_id, promptpay_name }
 
 // ─── โหลดข้อมูลหลักจาก Supabase ──────────────────────
 async function loadCoreData() {
   try {
-    [products, categories] = await Promise.all([
+    [products, categories, appSettings] = await Promise.all([
       db.getProducts(),
       db.getCategories(),
+      db.getSettings().catch(() => ({})),  // settings ไม่พังทั้งแอปถ้า error
     ]);
   } catch (err) {
     console.error('โหลดข้อมูลไม่สำเร็จ:', err);
@@ -76,6 +79,64 @@ async function loadAdminData() {
   renderCategoryGrid();
   updateStats();
   renderReports();
+  loadPaymentSettingsForm();
+}
+
+// ─── Payment Settings (หลังบ้าน) ─────────────────────
+// เติมค่า settings ปัจจุบันลงในฟอร์ม + สร้าง QR ตัวอย่าง
+function loadPaymentSettingsForm() {
+  const idEl   = document.getElementById('setPromptpayId');
+  const nameEl = document.getElementById('setPromptpayName');
+  if (!idEl) return;
+  idEl.value   = appSettings.promptpay_id   || '';
+  nameEl.value = appSettings.promptpay_name || '';
+  renderSettingsQrPreview();
+}
+
+// สร้าง QR ตัวอย่างในหน้าตั้งค่า (ยอด 0 = QR แบบไม่ล็อกยอด)
+function renderSettingsQrPreview() {
+  const id       = document.getElementById('setPromptpayId').value.trim();
+  const canvas   = document.getElementById('setQrPreview');
+  const hint     = document.getElementById('setQrHint');
+  if (!id) {
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    hint.textContent = 'กรอกเบอร์แล้วกด "บันทึก" เพื่อสร้าง QR';
+    return;
+  }
+  try {
+    const payload = window.aqPromptPay(id, null); // static QR
+    window.QRCode.toCanvas(canvas, payload, { width: 180, margin: 1 });
+    hint.textContent = 'QR นี้จะใช้รับเงินในหน้าขาย';
+  } catch (err) {
+    console.error(err);
+    hint.textContent = 'เบอร์ไม่ถูกต้อง';
+  }
+}
+
+async function savePaymentSettings() {
+  const id   = document.getElementById('setPromptpayId').value.trim();
+  const name = document.getElementById('setPromptpayName').value.trim();
+  const digits = id.replace(/\D/g, '');
+
+  if (id && digits.length !== 10 && digits.length !== 13) {
+    showToast('เบอร์ต้อง 10 หลัก หรือเลขบัตร 13 หลัก', 'error');
+    return;
+  }
+
+  try {
+    await db.saveSettings({ promptpay_id: id, promptpay_name: name });
+    appSettings.promptpay_id   = id;
+    appSettings.promptpay_name = name;
+  } catch (err) {
+    console.error(err);
+    showToast('บันทึกการตั้งค่าไม่สำเร็จ', 'error');
+    return;
+  }
+
+  renderSettingsQrPreview();
+  updateCheckoutButton();
+  showToast('บันทึกการตั้งค่าแล้ว', 'success');
 }
 
 // ─── Clock ───────────────────────────────────────────
@@ -248,8 +309,67 @@ function updateCart() {
   calcChange();
   updateCartFab();
 
-  const checkoutBtn = document.getElementById('checkoutBtn');
-  checkoutBtn.disabled = cart.length === 0;
+  // อัปเดต QR PromptPay ถ้าอยู่โหมดนั้น
+  if (paymentMethod === 'promptpay') renderPromptPayQR(grand);
+
+  updateCheckoutButton();
+}
+
+// เปิด/ปิดปุ่มชำระเงิน ตามวิธีชำระที่เลือก
+function updateCheckoutButton() {
+  const btn = document.getElementById('checkoutBtn');
+  if (!btn) return;
+  if (cart.length === 0) { btn.disabled = true; return; }
+  if (paymentMethod === 'promptpay') {
+    // ต้องตั้งค่า PromptPay ไว้ก่อน
+    btn.disabled = !appSettings.promptpay_id;
+  } else {
+    btn.disabled = false;
+  }
+}
+
+// ─── Payment Method Switch ───────────────────────────
+function setPaymentMethod(method) {
+  paymentMethod = method;
+  document.getElementById('payCashBtn').classList.toggle('active', method === 'cash');
+  document.getElementById('payQrBtn').classList.toggle('active', method === 'promptpay');
+  document.getElementById('cashPane').style.display = method === 'cash' ? '' : 'none';
+  document.getElementById('qrPane').style.display   = method === 'promptpay' ? '' : 'none';
+
+  if (method === 'promptpay') {
+    const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+    const discount = parseFloat(document.getElementById('discountInput')?.value) || 0;
+    renderPromptPayQR(Math.max(0, subtotal - discount));
+  }
+  updateCheckoutButton();
+}
+
+// ─── Render PromptPay QR ─────────────────────────────
+function renderPromptPayQR(amount) {
+  const box    = document.getElementById('promptpayBox');
+  const empty  = document.getElementById('ppEmpty');
+  const ppId   = appSettings.promptpay_id;
+
+  if (!ppId) {
+    box.style.display   = 'none';
+    empty.style.display = 'block';
+    return;
+  }
+  box.style.display   = '';
+  empty.style.display = 'none';
+
+  document.getElementById('ppAmount').textContent = `฿${formatNum(amount)}`;
+  document.getElementById('ppName').textContent   = appSettings.promptpay_name || '';
+
+  try {
+    const payload = window.aqPromptPay(ppId, amount > 0 ? amount : null);
+    const canvas  = document.getElementById('ppQrCanvas');
+    window.QRCode.toCanvas(canvas, payload, { width: 200, margin: 1 }, (err) => {
+      if (err) console.error('สร้าง QR ไม่สำเร็จ:', err);
+    });
+  } catch (err) {
+    console.error(err);
+  }
 }
 
 function buildQuickAmounts(grand) {
@@ -301,9 +421,18 @@ async function checkout() {
   const discount = parseFloat(document.getElementById('discountInput')?.value) || 0;
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const grand    = Math.max(0, subtotal - discount);
-  const cash     = parseFloat(document.getElementById('cashInput')?.value) || 0;
 
-  if (cash < grand) { showToast('รับเงินไม่เพียงพอ', 'error'); return; }
+  // เงินที่รับ: โหมดเงินสดใช้ค่าจากช่อง, โหมด PromptPay ถือว่าโอนเต็มจำนวน
+  let cash, change;
+  if (paymentMethod === 'promptpay') {
+    if (!appSettings.promptpay_id) { showToast('ยังไม่ได้ตั้งค่า PromptPay', 'error'); return; }
+    cash   = grand;
+    change = 0;
+  } else {
+    cash = parseFloat(document.getElementById('cashInput')?.value) || 0;
+    if (cash < grand) { showToast('รับเงินไม่เพียงพอ', 'error'); return; }
+    change = cash - grand;
+  }
 
   const btn = document.getElementById('checkoutBtn');
   if (btn) btn.disabled = true;
@@ -318,7 +447,8 @@ async function checkout() {
     discount,
     grand,
     cash,
-    change:  cash - grand,
+    change,
+    payment_method: paymentMethod,
   };
 
   try {
@@ -340,6 +470,7 @@ async function checkout() {
   cart = [];
   document.getElementById('discountInput').value = '';
   document.getElementById('cashInput').value = '';
+  setPaymentMethod('cash');   // รีเซ็ตกลับโหมดเงินสด
   renderCart();
   showToast(`ชำระเงินสำเร็จ ${sale.id}`, 'success');
 }
@@ -373,8 +504,11 @@ function showReceipt(sale) {
         <div class="receipt-total-row"><span>ราคารวม</span><span>฿${formatNum(sale.subtotal)}</span></div>
         ${sale.discount > 0 ? `<div class="receipt-total-row"><span>ส่วนลด</span><span>-฿${formatNum(sale.discount)}</span></div>` : ''}
         <div class="receipt-grand-row"><span>ยอดชำระ</span><span>฿${formatNum(sale.grand)}</span></div>
-        <div class="receipt-total-row"><span>รับเงิน</span><span>฿${formatNum(sale.cash)}</span></div>
-        <div class="receipt-total-row"><span>เงินทอน</span><span>฿${formatNum(sale.change)}</span></div>
+        <div class="receipt-total-row"><span>วิธีชำระ</span><span>${sale.payment_method === 'promptpay' ? 'PromptPay' : 'เงินสด'}</span></div>
+        ${sale.payment_method === 'promptpay'
+          ? `<div class="receipt-total-row"><span>โอนผ่าน PromptPay</span><span>฿${formatNum(sale.grand)}</span></div>`
+          : `<div class="receipt-total-row"><span>รับเงิน</span><span>฿${formatNum(sale.cash)}</span></div>
+             <div class="receipt-total-row"><span>เงินทอน</span><span>฿${formatNum(sale.change)}</span></div>`}
       </div>
       <div class="receipt-footer">
         <p>ขอบคุณที่ใช้บริการ 😊</p>
