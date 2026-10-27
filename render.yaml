@@ -16,8 +16,5 @@ services:
       - path: /*
         name: Referrer-Policy
         value: strict-origin-when-cross-origin
-    routes:
-      # ให้ทุกเส้นทางที่ไม่ตรงไฟล์จริง กลับไปที่ index.html
-      - type: rewrite
-        source: /*
-        destination: /index.html
+    # ไม่ใส่ rewrite route เพราะเป็น multi-page site ธรรมดา
+    # (ถ้าใส่ rewrite /* -> /index.html จะทำให้ไฟล์ .js/.css ถูกส่งกลับเป็น HTML → MIME ผิด)
