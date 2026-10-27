@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -130,7 +130,7 @@
           <div class="payment-label"><i class="fas fa-qrcode"></i> สแกนเพื่อโอน</div>
           <div class="promptpay-box" id="promptpayBox">
             <div class="promptpay-logo">PromptPay</div>
-            <canvas id="ppQrCanvas"></canvas>
+            <div id="ppQrCanvas" class="qr-holder"></div>
             <div class="promptpay-amount" id="ppAmount">฿0.00</div>
             <div class="promptpay-name" id="ppName"></div>
           </div>
@@ -329,7 +329,7 @@
           </div>
           <div class="settings-preview">
             <div class="settings-preview-label">ตัวอย่าง QR</div>
-            <canvas id="setQrPreview"></canvas>
+            <div id="setQrPreview" class="qr-holder"></div>
             <small id="setQrHint" class="settings-hint">กรอกเบอร์แล้วกด "บันทึก" เพื่อสร้าง QR</small>
           </div>
           <button class="btn-primary" onclick="savePaymentSettings()">

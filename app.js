@@ -96,17 +96,16 @@ function loadPaymentSettingsForm() {
 // สร้าง QR ตัวอย่างในหน้าตั้งค่า (ยอด 0 = QR แบบไม่ล็อกยอด)
 function renderSettingsQrPreview() {
   const id       = document.getElementById('setPromptpayId').value.trim();
-  const canvas   = document.getElementById('setQrPreview');
+  const holder   = document.getElementById('setQrPreview');
   const hint     = document.getElementById('setQrHint');
   if (!id) {
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    holder.innerHTML = '';
     hint.textContent = 'กรอกเบอร์แล้วกด "บันทึก" เพื่อสร้าง QR';
     return;
   }
   try {
     const payload = window.aqPromptPay(id, null); // static QR
-    window.QRCode.toCanvas(canvas, payload, { width: 180, margin: 1 });
+    renderQRInto('setQrPreview', payload, 180);
     hint.textContent = 'QR นี้จะใช้รับเงินในหน้าขาย';
   } catch (err) {
     console.error(err);
@@ -363,13 +362,23 @@ function renderPromptPayQR(amount) {
 
   try {
     const payload = window.aqPromptPay(ppId, amount > 0 ? amount : null);
-    const canvas  = document.getElementById('ppQrCanvas');
-    window.QRCode.toCanvas(canvas, payload, { width: 200, margin: 1 }, (err) => {
-      if (err) console.error('สร้าง QR ไม่สำเร็จ:', err);
-    });
+    renderQRInto('ppQrCanvas', payload, 200);
   } catch (err) {
-    console.error(err);
+    console.error('สร้าง QR ไม่สำเร็จ:', err);
   }
+}
+
+// สร้าง QR ลงใน element (ใช้ qrcodejs — ล้างของเดิมก่อนทุกครั้ง)
+function renderQRInto(elementId, payload, size) {
+  const el = document.getElementById(elementId);
+  if (!el || !window.QRCode) return;
+  el.innerHTML = '';
+  new window.QRCode(el, {
+    text: payload,
+    width: size,
+    height: size,
+    correctLevel: window.QRCode.CorrectLevel.M,
+  });
 }
 
 function buildQuickAmounts(grand) {
