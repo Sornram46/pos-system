@@ -116,9 +116,10 @@
         <div id="cashPane">
           <div class="payment-label"><i class="fas fa-money-bill-wave"></i> รับเงิน</div>
           <div class="quick-amounts" id="quickAmounts"></div>
-          <div class="cash-input-wrap">
+          <div class="cash-input-wrap" onclick="openNumpad()">
             <span class="currency-sign">฿</span>
-            <input type="number" id="cashInput" placeholder="0.00" min="0" oninput="calcChange()" />
+            <input type="text" id="cashInput" placeholder="0.00" readonly inputmode="none" />
+            <i class="fas fa-calculator cash-calc-icon"></i>
           </div>
           <div class="change-display" id="changeDisplay">
             <span>เงินทอน: </span><span id="changeAmount">฿0.00</span>
@@ -530,6 +531,58 @@
       <button class="btn-primary" onclick="saveCategory()">
         <i class="fas fa-save"></i> บันทึก
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== RECEIPT MODAL ===================== -->
+<!-- ===================== NUMPAD MODAL (รับเงิน) ===================== -->
+<div class="modal-overlay" id="numpadModal" onclick="closeNumpad(event)">
+  <div class="modal numpad-modal">
+    <div class="modal-header">
+      <h3><i class="fas fa-calculator"></i> รับเงิน</h3>
+      <button class="modal-close" onclick="closeNumpad()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body numpad-body">
+      <div class="numpad-info">
+        <div class="numpad-info-row">
+          <span>ยอดที่ต้องชำระ</span>
+          <span id="numpadDue">฿0.00</span>
+        </div>
+        <div class="numpad-info-row numpad-change-row">
+          <span>เงินทอน</span>
+          <span id="numpadChange">฿0.00</span>
+        </div>
+      </div>
+
+      <div class="numpad-display" id="numpadDisplay">0</div>
+
+      <!-- ปุ่มลัดจำนวนเงิน -->
+      <div class="numpad-quick" id="numpadQuick"></div>
+
+      <div class="numpad-grid">
+        <button class="numpad-key" onclick="numpadPress('7')">7</button>
+        <button class="numpad-key" onclick="numpadPress('8')">8</button>
+        <button class="numpad-key" onclick="numpadPress('9')">9</button>
+        <button class="numpad-key" onclick="numpadPress('4')">4</button>
+        <button class="numpad-key" onclick="numpadPress('5')">5</button>
+        <button class="numpad-key" onclick="numpadPress('6')">6</button>
+        <button class="numpad-key" onclick="numpadPress('1')">1</button>
+        <button class="numpad-key" onclick="numpadPress('2')">2</button>
+        <button class="numpad-key" onclick="numpadPress('3')">3</button>
+        <button class="numpad-key" onclick="numpadPress('.')">.</button>
+        <button class="numpad-key" onclick="numpadPress('0')">0</button>
+        <button class="numpad-key numpad-del" onclick="numpadBackspace()"><i class="fas fa-delete-left"></i></button>
+      </div>
+
+      <div class="numpad-actions">
+        <button class="btn-outline numpad-clear" onclick="numpadClear()">
+          <i class="fas fa-eraser"></i> ล้าง
+        </button>
+        <button class="btn-primary numpad-confirm" onclick="numpadConfirm()">
+          <i class="fas fa-check"></i> ยืนยัน
+        </button>
+      </div>
     </div>
   </div>
 </div>

@@ -2082,3 +2082,129 @@ canvas {
 .settings-body .btn-primary {
   align-self: flex-start;
 }
+
+/* ===========================
+   NUMPAD (รับเงิน)
+   =========================== */
+.cash-input-wrap { cursor: pointer; }
+.cash-input-wrap input { cursor: pointer; }
+
+.cash-calc-icon {
+  color: var(--gray-400);
+  font-size: 1rem;
+}
+
+.numpad-modal { max-width: 360px; }
+
+.numpad-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.numpad-info {
+  background: var(--gray-50);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+}
+
+.numpad-info-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  color: var(--gray-600);
+  padding: 3px 0;
+}
+
+.numpad-info-row span:last-child {
+  font-weight: 700;
+  color: var(--gray-800);
+}
+
+.numpad-change-row span:last-child {
+  font-size: 1.05rem;
+  color: var(--green);
+}
+
+.numpad-display {
+  text-align: right;
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--red-primary);
+  background: var(--white);
+  border: 2px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  padding: 12px 18px;
+  min-height: 58px;
+  letter-spacing: 1px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.numpad-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.numpad-quick-btn {
+  flex: 1 1 calc(50% - 6px);
+  padding: 8px;
+  border-radius: 50px;
+  border: 1.5px solid var(--red-pale);
+  background: var(--red-ultra);
+  color: var(--red-primary);
+  font-family: var(--font);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.numpad-quick-btn:hover {
+  background: var(--red-primary);
+  color: var(--white);
+  border-color: var(--red-primary);
+}
+
+.numpad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.numpad-key {
+  padding: 16px 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  font-family: var(--font);
+  color: var(--gray-800);
+  background: var(--white);
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.1s;
+  user-select: none;
+}
+
+.numpad-key:hover { background: var(--gray-50); border-color: var(--gray-300); }
+.numpad-key:active { transform: scale(0.95); background: var(--red-ultra); }
+
+.numpad-del {
+  color: var(--red-light);
+}
+
+.numpad-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.numpad-actions > button {
+  flex: 1;
+  justify-content: center;
+  padding: 13px;
+  font-size: 1rem;
+}
+
+.numpad-confirm { flex: 1.6 !important; }

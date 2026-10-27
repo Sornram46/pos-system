@@ -424,6 +424,103 @@ function calcChange() {
   }
 }
 
+// ─── Numpad (รับเงิน) ────────────────────────────────
+let numpadValue = '';
+
+function currentGrand() {
+  const discount = parseFloat(document.getElementById('discountInput')?.value) || 0;
+  const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  return Math.max(0, subtotal - discount);
+}
+
+function openNumpad() {
+  if (cart.length === 0) { showToast('ยังไม่มีสินค้าในตะกร้า', 'error'); return; }
+  // เริ่มจากค่าที่มีอยู่ในช่อง (ถ้ามี)
+  const existing = document.getElementById('cashInput').value;
+  numpadValue = existing && parseFloat(existing) > 0 ? String(parseFloat(existing)) : '';
+  buildNumpadQuick();
+  renderNumpad();
+  document.getElementById('numpadModal').classList.add('open');
+}
+
+function closeNumpad(e) {
+  if (!e || e.target.id === 'numpadModal') {
+    document.getElementById('numpadModal').classList.remove('open');
+  }
+}
+
+// ปุ่มลัดจำนวนเงิน (เหมือน quick amounts แต่อยู่ใน numpad)
+function buildNumpadQuick() {
+  const grand = currentGrand();
+  const wrap  = document.getElementById('numpadQuick');
+  const roundings = [10, 20, 50, 100, 500, 1000];
+  const list = [];
+  if (grand > 0) {
+    list.push(grand); // พอดี
+    roundings.forEach(r => {
+      const v = Math.ceil(grand / r) * r;
+      if (v !== grand && !list.includes(v)) list.push(v);
+    });
+  }
+  wrap.innerHTML = list.slice(0, 4).map((amt, i) =>
+    `<button class="numpad-quick-btn" onclick="numpadSetExact(${amt})">${i === 0 ? 'พอดี ' : ''}฿${formatNum(amt)}</button>`
+  ).join('');
+}
+
+function numpadSetExact(amt) {
+  numpadValue = String(amt);
+  renderNumpad();
+}
+
+function numpadPress(ch) {
+  if (ch === '.') {
+    if (numpadValue.includes('.')) return;
+    if (numpadValue === '') numpadValue = '0';
+    numpadValue += '.';
+  } else {
+    // จำกัดทศนิยม 2 ตำแหน่ง
+    if (numpadValue.includes('.') && numpadValue.split('.')[1].length >= 2) return;
+    if (numpadValue === '0') numpadValue = ch; // แทนที่ 0 นำหน้า
+    else numpadValue += ch;
+  }
+  renderNumpad();
+}
+
+function numpadBackspace() {
+  numpadValue = numpadValue.slice(0, -1);
+  renderNumpad();
+}
+
+function numpadClear() {
+  numpadValue = '';
+  renderNumpad();
+}
+
+function renderNumpad() {
+  const grand  = currentGrand();
+  const cash   = parseFloat(numpadValue) || 0;
+  const change = cash - grand;
+
+  document.getElementById('numpadDisplay').textContent = numpadValue === '' ? '0' : numpadValue;
+  document.getElementById('numpadDue').textContent     = `฿${formatNum(grand)}`;
+
+  const chEl = document.getElementById('numpadChange');
+  if (change >= 0) {
+    chEl.textContent = `฿${formatNum(change)}`;
+    chEl.style.color = 'var(--green)';
+  } else {
+    chEl.textContent = `ขาดอีก ฿${formatNum(Math.abs(change))}`;
+    chEl.style.color = 'var(--red-light)';
+  }
+}
+
+function numpadConfirm() {
+  const cash = parseFloat(numpadValue) || 0;
+  document.getElementById('cashInput').value = cash > 0 ? cash : '';
+  calcChange();
+  closeNumpad();
+}
+
 // ─── Checkout ────────────────────────────────────────
 async function checkout() {
   if (cart.length === 0) { showToast('ยังไม่มีสินค้าในตะกร้า', 'error'); return; }
