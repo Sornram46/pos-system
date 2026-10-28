@@ -332,6 +332,9 @@ body {
   flex-direction: column;
   border-left: 1px solid var(--gray-200);
   box-shadow: -4px 0 16px rgba(0,0,0,0.05);
+  height: 100%;        /* ยึดความสูงจาก grid cell */
+  min-height: 0;       /* ให้ลูก flex ที่ scroll ได้ทำงานถูกต้อง */
+  overflow: hidden;    /* ไม่ให้ section เองยืดเกินกรอบ */
 }
 
 .cart-header {
@@ -373,7 +376,8 @@ body {
 }
 
 .cart-items {
-  flex: 1;
+  flex: 1 1 0;
+  min-height: 0;       /* สำคัญ: ให้ scroll ภายในแทนที่จะดันส่วนอื่นลง */
   overflow-y: auto;
   padding: 12px;
   scrollbar-width: thin;
