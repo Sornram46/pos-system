@@ -736,7 +736,9 @@ function renderCategoryGrid() {
     const count = products.filter(p => p.category === cat.name).length;
     return `
       <div class="category-item">
-        <div class="cat-item-emoji">${cat.emoji}</div>
+        <div class="cat-item-emoji">${cat.image_url
+          ? `<img class="cat-item-img" src="${cat.image_url}" alt="${cat.name}" loading="lazy" />`
+          : cat.emoji}</div>
         <div class="cat-item-info">
           <div class="cat-item-name">${cat.name}</div>
           <div class="cat-item-count">สินค้า <strong>${count}</strong> รายการ</div>
@@ -754,11 +756,62 @@ function renderCategoryGrid() {
   }).join('');
 }
 
+// ─── Category Image State ────────────────────────────
+let catPendingImageFile = null;
+let catCurrentImageUrl  = null;
+let catImageWasRemoved  = false;
+
+function setCatImagePreview(src) {
+  document.getElementById('catImagePreviewImg').src = src;
+  document.getElementById('catImagePreviewImg').style.display = 'block';
+  document.getElementById('catImagePreviewEmoji').style.display = 'none';
+  document.getElementById('catImageRemoveBtn').style.display = 'flex';
+}
+
+function clearCatImagePreview() {
+  const img = document.getElementById('catImagePreviewImg');
+  img.src = '';
+  img.style.display = 'none';
+  document.getElementById('catImagePreviewEmoji').style.display = 'block';
+  document.getElementById('catImageRemoveBtn').style.display = 'none';
+  syncCatEmojiPreview();
+}
+
+function syncCatEmojiPreview() {
+  const img = document.getElementById('catImagePreviewImg');
+  if (img.style.display === 'block') return;
+  const val = document.getElementById('categoryEmoji').value.trim() || '🏷️';
+  document.getElementById('catImagePreviewEmoji').textContent = val;
+}
+
+function handleCategoryImageSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { showToast('กรุณาเลือกไฟล์รูปภาพ', 'error'); e.target.value = ''; return; }
+  if (file.size > MAX_IMAGE_BYTES) { showToast('รูปใหญ่เกิน 2MB', 'error'); e.target.value = ''; return; }
+  catPendingImageFile = file;
+  catImageWasRemoved  = false;
+  setCatImagePreview(URL.createObjectURL(file));
+}
+
+function removeCategoryImage() {
+  catPendingImageFile = null;
+  catImageWasRemoved  = true;
+  document.getElementById('categoryImageInput').value = '';
+  clearCatImagePreview();
+}
+
 function openCategoryModal(id = null) {
   document.getElementById('categoryName').value  = '';
   document.getElementById('categoryEmoji').value = '🏷️';
   document.getElementById('editCategoryId').value = '';
+  document.getElementById('categoryImageInput').value = '';
   document.getElementById('catModalTitle').innerHTML = '<i class="fas fa-plus-circle"></i> เพิ่มหมวดหมู่';
+
+  // reset image state
+  catPendingImageFile = null;
+  catCurrentImageUrl  = null;
+  catImageWasRemoved  = false;
 
   if (id) {
     const c = categories.find(x => x.id === id);
@@ -767,6 +820,11 @@ function openCategoryModal(id = null) {
     document.getElementById('editCategoryId').value    = c.id;
     document.getElementById('categoryName').value      = c.name;
     document.getElementById('categoryEmoji').value     = c.emoji;
+    catCurrentImageUrl = c.image_url || null;
+    if (catCurrentImageUrl) setCatImagePreview(catCurrentImageUrl);
+    else clearCatImagePreview();
+  } else {
+    clearCatImagePreview();
   }
   document.getElementById('categoryModal').classList.add('open');
 }
@@ -785,12 +843,23 @@ async function saveCategory() {
   if (!name) { showToast('กรุณาระบุชื่อหมวดหมู่', 'error'); return; }
 
   try {
+    // จัดการรูป: อัปโหลดใหม่ / คงเดิม / ลบ
+    let imageUrl = catCurrentImageUrl;
+    if (catPendingImageFile) {
+      const uploaded = await db.uploadProductImage(catPendingImageFile);
+      imageUrl = uploaded.url;
+      if (editId && catCurrentImageUrl) await db.deleteProductImage(catCurrentImageUrl);
+    } else if (catImageWasRemoved) {
+      if (editId && catCurrentImageUrl) await db.deleteProductImage(catCurrentImageUrl);
+      imageUrl = null;
+    }
+
     if (editId) {
       const idx = categories.findIndex(c => c.id === parseInt(editId));
       if (idx > -1) {
         const oldName = categories[idx].name;
-        await db.updateCategory(categories[idx].id, { name, emoji });
-        categories[idx] = { ...categories[idx], name, emoji };
+        await db.updateCategory(categories[idx].id, { name, emoji, image_url: imageUrl });
+        categories[idx] = { ...categories[idx], name, emoji, image_url: imageUrl };
         // ย้ายสินค้าในหมวดเดิมไปใช้ชื่อใหม่
         if (oldName !== name) {
           await db.renameProductsCategory(oldName, name);
@@ -802,7 +871,7 @@ async function saveCategory() {
       if (categories.find(c => c.name === name)) {
         showToast('หมวดหมู่นี้มีอยู่แล้ว', 'error'); return;
       }
-      const created = await db.addCategory({ name, emoji });
+      const created = await db.addCategory({ name, emoji, image_url: imageUrl });
       categories.push(created);
       showToast(`เพิ่มหมวดหมู่ "${name}" แล้ว`, 'success');
     }
@@ -837,6 +906,7 @@ async function deleteCategory(id) {
       products.forEach(p => { if (p.category === cat.name) p.category = 'ไม่มีหมวดหมู่'; });
     }
     await db.deleteCategory(id);
+    if (cat.image_url) await db.deleteProductImage(cat.image_url);
     categories = categories.filter(c => c.id !== id);
   } catch (err) {
     console.error(err);
@@ -854,6 +924,13 @@ async function deleteCategory(id) {
 
 function setCatEmoji(emoji) {
   document.getElementById('categoryEmoji').value = emoji;
+  syncCatEmojiPreview();
+}
+
+// ─── Collapsible Admin Cards ─────────────────────────
+function toggleCard(cardId) {
+  const card = document.getElementById(cardId);
+  if (card) card.classList.toggle('collapsed');
 }
 
 // ─── Product Image State (ใช้ภายใน modal) ────────────

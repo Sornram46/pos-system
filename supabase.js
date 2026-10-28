@@ -40,23 +40,23 @@ const _db = {
       .select('*')
       .order('id', { ascending: true });
     if (error) throw error;
-    return data.map(c => ({ id: c.id, name: c.name, emoji: c.emoji }));
+    return data.map(c => ({ id: c.id, name: c.name, emoji: c.emoji, image_url: c.image_url || null }));
   },
 
-  async addCategory({ name, emoji }) {
+  async addCategory({ name, emoji, image_url }) {
     const { data, error } = await sb
       .from('categories')
-      .insert({ name, emoji })
+      .insert({ name, emoji, image_url: image_url || null })
       .select()
       .single();
     if (error) throw error;
-    return { id: data.id, name: data.name, emoji: data.emoji };
+    return { id: data.id, name: data.name, emoji: data.emoji, image_url: data.image_url || null };
   },
 
-  async updateCategory(id, { name, emoji }) {
+  async updateCategory(id, { name, emoji, image_url }) {
     const { error } = await sb
       .from('categories')
-      .update({ name, emoji })
+      .update({ name, emoji, image_url: image_url || null })
       .eq('id', id);
     if (error) throw error;
   },

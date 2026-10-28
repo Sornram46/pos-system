@@ -36,3 +36,10 @@ on conflict (key) do nothing;
 alter table public.sales
   add column if not exists payment_method text not null default 'cash';
   -- ค่า: 'cash' = เงินสด, 'promptpay' = โอนผ่าน PromptPay
+
+-- =====================================================
+--  เพิ่มรูปภาพให้หมวดหมู่ (รันเพิ่มได้เลย)
+--  รูปเก็บใน bucket 'product-images' เดิม (โฟลเดอร์ categories/)
+-- =====================================================
+alter table public.categories
+  add column if not exists image_url text;

@@ -2208,3 +2208,69 @@ canvas {
 }
 
 .numpad-confirm { flex: 1.6 !important; }
+
+/* ===========================
+   CATEGORY IMAGE
+   =========================== */
+.cat-item-img {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  display: block;
+}
+
+/* ===========================
+   COLLAPSIBLE ADMIN CARDS
+   =========================== */
+.admin-card.collapsible .admin-card-header {
+  cursor: pointer;
+  user-select: none;
+}
+
+.card-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.card-toggle-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1.5px solid var(--gray-200);
+  background: var(--white);
+  color: var(--gray-500);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.card-toggle-btn:hover {
+  border-color: var(--red-primary);
+  color: var(--red-primary);
+}
+
+.card-toggle-btn i {
+  transition: transform 0.25s ease;
+}
+
+/* ส่วนเนื้อหาที่พับได้ */
+.card-collapse {
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.2s ease;
+  max-height: 4000px;
+  opacity: 1;
+}
+
+.admin-card.collapsed .card-collapse {
+  max-height: 0;
+  opacity: 0;
+}
+
+.admin-card.collapsed .card-toggle-btn i {
+  transform: rotate(-90deg);
+}
